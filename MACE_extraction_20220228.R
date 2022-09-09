@@ -1,0 +1,33 @@
+library(tidyverse)
+library(tidylog)
+library(tableone)
+library(MatchIt)
+library(survival)
+library(lubridate)
+library(ggpubr)
+library(SCCS)
+
+load("CARE data_20220228/DX.RData")
+cohort <- readRDS("CARE data_20220228/4.cohort_full.RDS")
+cohort <- cohort %>% mutate(id = openssl::sha256(paste0(PseudoID , "hKyou$haRma-cYCARe|oroj@")))
+df <- df %>% mutate(patient_pssn = cohort$patient_pssn[match(id, cohort$id)])
+dx_all <- rbind(dx_latest, dx_clean) %>% as_tibble() %>%
+  mutate(PseudoID  = cohort$PseudoID [match(patient_pssn, cohort$patient_pssn)]) %>%
+  mutate(id = openssl::sha256(paste0(PseudoID , "hKyou$haRma-cYCARe|oroj@")))
+dx_ASCVD <- dx_all %>% filter(patient_pssn%in%df$patient_pssn) %>%   filter(str_detect(code, "^43[0-8]|^44[0-3]|^41[0-4]|^36\\."))
+dx_ASCVD <- dx_ASCVD %>% mutate(id = df$id[match(patient_pssn, df$patient_pssn)]) %>% select(id, everything()) %>% select(-patient_pssn, -PseudoID)
+write_rds(dx_ASCVD, "CARE data_20220228/dx_ASCVD.rds")
+dx_myocarditis <- dx_all %>% filter(str_detect(code, "^422|^429.0|^420.9|^423.9|^K84")) %>% select(id, date, order, code, code_ext, Source, ranking)
+dx_thromboembolism <- dx_all %>% filter(str_detect(code, "^415.1|^453|^44[345]|^43[3456]|^437.[01689]|^45[12]|^325|^286.6|^459.9|^557.[09]|^K89|^K9[0134]")) %>% select(id, date, order, code, code_ext, Source, ranking)
+dx_thrombocytopenia <- dx_all %>% filter(str_detect(code, "^446.6")) %>% select(id, date, order, code, code_ext, Source, ranking)
+write_rds(dx_myocarditis, "CARE data_20220228/dx_myocarditis.rds")
+write_rds(dx_thromboembolism, "CARE data_20220228/dx_thromboembolism.rds")
+write_rds(dx_thrombocytopenia, "CARE data_20220228/dx_thrombocytopenia.rds")
+dx_fracture <- dx_all %>% filter(patient_pssn%in%df$patient_pssn) %>%   filter(str_detect(code, "^8[0-2][0-9]")) %>% select(id, date, order, code, code_ext, Source, ranking)
+write_rds(dx_ASCVD, "CARE data_20220228/dx_fracture.rds")
+LAB_ALL_COVID <- readRDS("CARE data_20220228/LAB_ALL_COVID.RDS") %>%
+  filter(result == "positive"|result == "detected") %>%
+  mutate(id = cohort$id[match(patient_pssn, cohort$patient_pssn)])
+df2 %>% filter(id %in% LAB_ALL_COVID$id) %>% mutate(date_covid = LAB_ALL_COVID$date[match(id, LAB_ALL_COVID$id)]) %>% select(date_covid, everything())
+LAB_ALL_COVID$patient_pssn %>% unique() %>% length()
+write_rds(LAB_ALL_COVID, "CARE data_20220228/positive_COVID.rds")
